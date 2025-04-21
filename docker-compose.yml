@@ -1,0 +1,52 @@
+services:
+  api:
+    build:
+      context: ./api
+    container_name: api
+    volumes:
+      - ./api:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - message-queue
+      - elasticsearch
+
+  query-converter:
+    image: python:3.12
+    container_name: query-converter
+    working_dir: /app
+    command: sh -c "pip install -r requirements.txt && python worker.py"
+    volumes:
+      - ./query-converter:/app
+    depends_on:
+      - message-queue
+      - elasticsearch
+
+  logger:
+    image: python:3.12
+    container_name: logger
+    working_dir: /app
+    command: sh -c "pip install -r requirements.txt && python worker.py"
+    volumes:
+      - ./logger:/app
+    depends_on:
+      - message-queue
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.3
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+
+  message-queue:
+    image: rabbitmq:3-management
+    container_name: message-queue
+    ports:
+      - "5672:5672"      # AMQP
+      - "15672:15672"    # Management UI
